@@ -1,4 +1,59 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserEntity } from './auth.entity/auth.entity';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
-export class AuthService {}
+export class AuthService {
+    constructor(
+        @InjectRepository(UserEntity)
+        private readonly userRepository: Repository<UserEntity>,
+        private readonly jwtService: JwtService,
+    ) {}
+
+    async register(createUserDto: {email:string , password:string, username:string}): Promise<UserEntity> {
+        const user = this.userRepository.create( createUserDto );
+        return this.userRepository.save(user);
+    }
+
+    async login(loginUserDto: {email:string, password:string}): Promise<{ accessToken: string }> {
+        const { email, password } = loginUserDto;
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (user && await bcrypt.compare(password, user.password)) {
+            const payload = { email: user.email, sub: user.id };
+            const accessToken = this.jwtService.sign(payload);
+            return { accessToken };
+        }
+        throw new Error('Invalid credentials');
+    }
+
+    async forgotPassword(email: string): Promise<string> {
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+        // Create a reset token
+        const resetToken = this.jwtService.sign({ email: user.email, sub: user.id }, { expiresIn: '1h' });
+        // Normally, you would send this reset token via email. For now, return it.
+        return resetToken;
+    }
+
+     // New method to handle resetting the password
+     async resetPassword(resetToken: string, newPassword: string): Promise<void> {
+        try {
+            // Verify the reset token
+            const { email } = this.jwtService.verify(resetToken);
+            const user = await this.userRepository.findOne({ where: { email } });
+            if (!user) {
+                throw new NotFoundException('Invalid token');
+            }
+            // Update the user's password
+            user.password = await bcrypt.hash(newPassword, 10);
+            await this.userRepository.save(user);
+        } catch (error) {
+            throw new Error('Invalid or expired token');
+        }
+    }
+}
