@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, BeforeInsert, OneToMany } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { ContactEntity } from 'src/user/contacts/user-contacts.entity/user-contacts.entity';
 
 @Entity()
 export class UserEntity {
@@ -17,7 +18,9 @@ export class UserEntity {
   
     @Column({ default: false })
     isAdmin: boolean;
-  
+    
+    @OneToMany(() => ContactEntity, contact => contact.user)
+    contacts: ContactEntity[]
     @BeforeInsert()
     async hashPassword() {
       this.password = await bcrypt.hash(this.password, 10);
