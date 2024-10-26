@@ -10,7 +10,8 @@ export class ContactEntity  {
 
     @Column()
     phone: string;
-
+    @Column()
+    address: string;
     @Column({ default: false })
     isEmergency: boolean; // Emergency contact flag
 

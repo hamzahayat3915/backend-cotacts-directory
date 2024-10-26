@@ -18,13 +18,13 @@ export class AuthService {
         return this.userRepository.save(user);
     }
 
-    async login(loginUserDto: {email:string, password:string}): Promise<{ accessToken: string }> {
+    async login(loginUserDto: {email:string, password:string}): Promise<{ accessToken: string , email:string, id:string}> {
         const { email, password } = loginUserDto;
         const user = await this.userRepository.findOne({ where: { email } });
         if (user && await bcrypt.compare(password, user.password)) {
             const payload = { email: user.email, sub: user.id };
             const accessToken = this.jwtService.sign(payload);
-            return { accessToken };
+            return { accessToken, email:user.email, id: String(user.id) };
         }
         throw new Error('Invalid credentials');
     }
