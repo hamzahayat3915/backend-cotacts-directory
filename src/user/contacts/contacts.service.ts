@@ -6,12 +6,17 @@ import { UserEntity } from '../auth/auth.entity/auth.entity';
 import * as XLSX from 'xlsx';
 interface CreateContactDto {
     name: string;
+    lastName?: string;
+    middleInitial?: string;
     phone: string;
+    address: string;
+    email?: string;
+    court?: string;
+    locale?: string;
+    branch?: string;
     isEmergency: boolean;
     isVisibleToAll?: boolean; // Optional field, only used for admin contacts
-    address:string;
-}
-
+  }
 @Injectable()
 export class ContactsService {
     constructor(
@@ -45,21 +50,33 @@ export class ContactsService {
     }
 
     // Regular users can add contacts privately, and multiple contacts can be emergency contacts (private)
+    // async addUserContact(createContactDto: CreateContactDto, userId: string): Promise<ContactEntity> {
+    //     const user = await this.userRepository.findOne({ where: { id: Number(userId) } });
+    //     if (!user) {
+    //         throw new Error('User not found');
+    //     }
+
+    //     // Multiple emergency contacts allowed for regular users (private by default)
+    //     if (createContactDto.isEmergency) {
+    //         createContactDto.isVisibleToAll = false; // Ensure private visibility for user contacts
+    //     }
+
+    //     const contact = this.contactRepository.create({ ...createContactDto, user });
+    //     return this.contactRepository.save(contact);
+    // }
     async addUserContact(createContactDto: CreateContactDto, userId: string): Promise<ContactEntity> {
         const user = await this.userRepository.findOne({ where: { id: Number(userId) } });
         if (!user) {
-            throw new Error('User not found');
+          throw new Error('User not found');
         }
-
-        // Multiple emergency contacts allowed for regular users (private by default)
+      
         if (createContactDto.isEmergency) {
-            createContactDto.isVisibleToAll = false; // Ensure private visibility for user contacts
+          createContactDto.isVisibleToAll = false; // Ensure private visibility for user contacts
         }
-
+      
         const contact = this.contactRepository.create({ ...createContactDto, user });
         return this.contactRepository.save(contact);
-    }
-
+      }
     // Get contacts visible to the public (Admin's emergency contacts)
     async getPublicContacts(): Promise<ContactEntity[]> {
         return this.contactRepository.find({ where: { isVisibleToAll: true } });
@@ -69,32 +86,63 @@ export class ContactsService {
     async getUserContacts(userId: number): Promise<ContactEntity[]> {
         return this.contactRepository.find({ where: { user: { id: userId } } });
     }
-
-    async importContactsFromExcel(file:any): Promise<string> {
+    async importContactsFromExcel(file: any): Promise<string> {
         const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0]; // Assuming you want to read the first sheet
         const sheet = workbook.Sheets[sheetName];
         const contacts: any[] = XLSX.utils.sheet_to_json(sheet); // Convert sheet data to JSON
-
+    
         for (const contactData of contacts) {
-            const { name, phone, address } = contactData;
-           console.log(`Importing contact: ${name}, ${phone}, ${address}`);
-            // Add logic to handle user association if needed
+            const { name, phone, address, court, locale, branch, lastName, middleInitial, email } = contactData;
+    
+            console.log(`Importing contact: ${name}, ${phone}, ${address}`);
+    
+            // Create the contact object and only add fields that are present in the imported data
             const createContactDto: CreateContactDto = {
                 name,
                 phone,
                 address,
                 isEmergency: false,
-                isVisibleToAll: true,
-               // Assuming you want to make emergency contacts visible to all
+                isVisibleToAll: true, // Assuming you want to make emergency contacts visible to all
+                ...(court && { court }), // Spread only if 'court' is defined
+                ...(locale && { locale }),
+                ...(branch && { branch }),
+                ...(lastName && { lastName }),
+                ...(middleInitial && { middleInitial }),
+                ...(email && { email })
             };
-
-            // Here you could modify the logic to associate contacts with a specific admin or user
+    
+            // Modify the logic to associate contacts with a specific admin or user if needed
             await this.addAdminContact(createContactDto, 1); // Change adminId as necessary
         }
-
+    
         return 'Contacts imported successfully!';
     }
+    // async importContactsFromExcel(file:any): Promise<string> {
+    //     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    //     const sheetName = workbook.SheetNames[0]; // Assuming you want to read the first sheet
+    //     const sheet = workbook.Sheets[sheetName];
+    //     const contacts: any[] = XLSX.utils.sheet_to_json(sheet); // Convert sheet data to JSON
+
+    //     for (const contactData of contacts) {
+    //         const { name, phone, address } = contactData;
+    //        console.log(`Importing contact: ${name}, ${phone}, ${address}`);
+    //         // Add logic to handle user association if needed
+    //         const createContactDto: CreateContactDto = {
+    //             name,
+    //             phone,
+    //             address,
+    //             isEmergency: false,
+    //             isVisibleToAll: true,
+    //            // Assuming you want to make emergency contacts visible to all
+    //         };
+
+    //         // Here you could modify the logic to associate contacts with a specific admin or user
+    //         await this.addAdminContact(createContactDto, 1); // Change adminId as necessary
+    //     }
+
+    //     return 'Contacts imported successfully!';
+    // }
 
     // Edit an admin contact
     async editAdminContact(id: number, updateContactDto: { name?: string, phone?: string, isEmergency?: boolean, address?: string }): Promise<ContactEntity> {

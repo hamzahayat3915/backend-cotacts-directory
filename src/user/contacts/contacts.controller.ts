@@ -13,8 +13,23 @@ export class ContactsController {
 
     // User can add a contact (including emergency)
     @Post('user/add/:userId')
-    async addUserContact(@Body() createContactDto: { name: string, phone: string, isEmergency: boolean, address:string }, @Param('userId') userId: string) {
-        return this.contactsService.addUserContact(createContactDto, userId);
+    async addUserContact(
+      @Body() createContactDto: { 
+        name: string; 
+        lastName: string; 
+        middleInitial: string;
+        phone: string; 
+        address: string; 
+        email: string; 
+        court: string;
+        locale: string;
+        branch: string;
+        isEmergency: boolean; 
+        isVisibleToAll: boolean;
+      }, 
+      @Param('userId') userId: string
+    ) {
+      return this.contactsService.addUserContact(createContactDto, userId);
     }
 
     // Get public (admin) emergency contacts
