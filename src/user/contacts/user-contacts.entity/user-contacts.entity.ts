@@ -35,4 +35,7 @@ export class ContactEntity {
 
     @Column({ nullable: true })
     email: string;
+
+    @Column({ nullable: true })
+    imagePath: string; // Column to store image path
 }
