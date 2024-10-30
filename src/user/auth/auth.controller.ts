@@ -23,12 +23,7 @@ export class AuthController {
         return this.authService.login(signInDto);
     }
 
-    @Post('forgot-password')
-    async forgotPassword(@Body('email') email: string): Promise<{ message: string, resetToken: string }> {
-        const resetToken = await this.authService.forgotPassword(email);
-        // Send resetToken via email to the user in real scenarios
-        return { message: 'Reset token sent to email (for demo purposes, here is the token)', resetToken };
-    }
+   
     @Get('user/:userId')
     async getUserById(@Param('userId') userId: string) {
         return this.authService.getUserById(userId);
@@ -40,5 +35,11 @@ export class AuthController {
     ): Promise<{ message: string }> {
         await this.authService.resetPassword(resetToken, newPassword);
         return { message: 'Password successfully reset' };
+    }
+
+    @Post('forgot-password')
+    async forgotPassword(@Body('email') email: string): Promise<{ message: string }> {
+        await this.authService.sendTemporaryPassword(email);
+        return { message: 'If the email exists, a temporary password has been sent to your email address.' };
     }
 }

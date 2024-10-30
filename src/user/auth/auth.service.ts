@@ -4,13 +4,16 @@ import { Repository } from 'typeorm';
 import { UserEntity } from './auth.entity/auth.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-
+import * as nodemailer from 'nodemailer';
+import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AuthService {
     constructor(
         @InjectRepository(UserEntity)
         private readonly userRepository: Repository<UserEntity>,
         private readonly jwtService: JwtService,
+        private readonly configService: ConfigService,
     ) {}
 
     async register(createUserDto: {email:string , password:string, username:string, court:string, branch:string}): Promise<UserEntity> {
@@ -81,5 +84,41 @@ export class AuthService {
         } catch (error) {
             throw new Error('Invalid or expired token');
         }
+    }
+
+    async sendTemporaryPassword(email: string): Promise<void> {
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        // Generate a temporary password
+        const tempPassword = crypto.randomBytes(8).toString('hex');
+
+        // Hash the temporary password and save it in the database
+        user.password = await bcrypt.hash(tempPassword, 10);
+        await this.userRepository.save(user);
+
+        // Send the temporary password via email
+        await this.sendPasswordEmail(email, tempPassword);
+    }
+
+    private async sendPasswordEmail(email: string, tempPassword: string): Promise<void> {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // You can use another email provider
+            auth: {
+                user: this.configService.get<string>('EMAIL'),
+                pass: this.configService.get<string>('EMAIL_PASS'),
+            },
+        });
+
+        const mailOptions = {
+            from: this.configService.get<string>('EMAIL'), // Replace with your email
+            to: email,
+            subject: 'Temporary Password for Your Account',
+            text: `Here is your temporary password: ${tempPassword}. Please log in and change your password as soon as possible.`
+        };
+
+        await transporter.sendMail(mailOptions);
     }
 }
